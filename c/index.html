@@ -1,0 +1,140 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex">
+<meta name="apple-itunes-app" content="app-id=6816372347, app-clip-bundle-id=com.tw466376.MeishiBox.Clip, app-clip-display=card">
+<title>緣名片 · En Cards</title>
+<style>
+  :root { --ink: #16203a; --muted: #5a6377; --line: #e3e7ef; --accent: #2e57e6; --bg: #f2f4f8; --card: #fff; }
+  @media (prefers-color-scheme: dark) { :root { --ink: #e7ebf4; --muted: #9aa4ba; --line: #2a3347; --accent: #83a0ff; --bg: #0b0f19; --card: #161c2b; } }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--ink); font: 17px/1.5 -apple-system, "PingFang TC", "Hiragino Sans", "Noto Sans TC", "Noto Sans JP", sans-serif; -webkit-text-size-adjust: 100%; }
+  main { max-width: 520px; margin: 0 auto; padding: 40px 16px 48px; }
+  .head { text-align: center; }
+  .avatar { width: 76px; height: 76px; border-radius: 50%; background: var(--accent); color: #fff; font-size: 34px; font-weight: 600; display: flex; align-items: center; justify-content: center; margin: 0 auto 12px; }
+  h1 { font-size: 32px; line-height: 1.2; margin: 0; overflow-wrap: anywhere; }
+  .reading, .role { color: var(--muted); margin: 4px 0 0; }
+  .company { font-weight: 600; margin: 4px 0 0; }
+  .save { display: block; width: 100%; margin: 24px 0; padding: 15px; border: 0; border-radius: 14px; background: var(--accent); color: #fff; font: inherit; font-weight: 600; cursor: pointer; }
+  .list { background: var(--card); border-radius: 14px; overflow: hidden; }
+  .row { display: flex; gap: 14px; align-items: center; padding: 12px 16px; color: inherit; text-decoration: none; border-top: 1px solid var(--line); }
+  .row:first-child { border-top: 0; }
+  .row small { display: block; color: var(--muted); font-size: 13px; }
+  .row span { overflow-wrap: anywhere; }
+  .icon { width: 24px; text-align: center; color: var(--accent); flex: none; }
+  .promo { margin-top: 24px; background: var(--card); border-radius: 14px; padding: 20px; text-align: center; }
+  .promo p { color: var(--muted); font-size: 15px; margin: 6px 0 14px; }
+  .promo a { color: var(--accent); font-weight: 600; text-decoration: none; }
+  .empty { text-align: center; color: var(--muted); padding-top: 80px; }
+  .note { text-align: center; color: var(--muted); font-size: 13px; margin-top: 20px; }
+</style>
+</head>
+<body>
+<main id="app"><p class="empty" id="empty"></p></main>
+<script>
+(() => {
+  const T = {
+    "zh-Hant": { save: "加入聯絡人", mobile: "手機", work: "電話", fax: "傳真", web: "網站", address: "地址", bad: "這個名片連結不完整，請對方再傳一次。", promoTitle: "收到的名片越來越多？", promo: "緣名片幫你掃描、整理、提醒跟進，也能做出自己的電子名片。免費。", get: "在 App Store 下載", note: "名片資料只在這個網址裡，不會上傳到任何伺服器。" },
+    "zh-Hans": { save: "添加到通讯录", mobile: "手机", work: "电话", fax: "传真", web: "网站", address: "地址", bad: "这个名片链接不完整，请对方再发一次。", promoTitle: "收到的名片越来越多？", promo: "缘名片帮你扫描、整理、提醒跟进，也能做出自己的电子名片。免费。", get: "在 App Store 下载", note: "名片资料只在这个网址里，不会上传到任何服务器。" },
+    "ja": { save: "連絡先に追加", mobile: "携帯", work: "電話", fax: "FAX", web: "Web サイト", address: "住所", bad: "名刺リンクが不完全です。もう一度送ってもらってください。", promoTitle: "名刺が増えてきたら", promo: "縁名刺は名刺のスキャン・整理・フォローアップのリマインドができ、自分の電子名刺も作れます。無料。", get: "App Store で入手", note: "名刺の情報はこの URL の中だけにあり、サーバーには送信されません。" },
+    "en": { save: "Add to Contacts", mobile: "Mobile", work: "Phone", fax: "Fax", web: "Website", address: "Address", bad: "This card link is incomplete. Please ask for it again.", promoTitle: "Collecting lots of business cards?", promo: "En Cards scans, organizes, and reminds you to follow up — and makes your own digital card. Free.", get: "Download on the App Store", note: "The card lives only in this link and is never uploaded to a server." }
+  };
+  const langs = (navigator.languages || [navigator.language || "en"]).map(l => l.toLowerCase());
+  const pick = () => {
+    for (const l of langs) {
+      if (l.startsWith("zh")) return (l.includes("hans") || l.endsWith("-cn") || l.endsWith("-sg")) ? "zh-Hans" : "zh-Hant";
+      if (l.startsWith("ja")) return "ja";
+      if (l.startsWith("en")) return "en";
+    }
+    return "en";
+  };
+  const lang = pick(), t = T[lang];
+  document.documentElement.lang = lang;
+  const app = document.getElementById("app");
+  const esc = s => String(s).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+
+  async function decode(hash) {
+    if (!hash.startsWith("#v1.")) throw new Error("version");
+    let b64 = hash.slice(4).replace(/-/g, "+").replace(/_/g, "/");
+    while (b64.length % 4) b64 += "=";
+    const bytes = Uint8Array.from(atob(b64), c => c.charCodeAt(0));
+    const stream = new Blob([bytes]).stream().pipeThrough(new DecompressionStream("deflate-raw"));
+    return JSON.parse(await new Response(stream).text());
+  }
+
+  // 跟 App 的 CardLink.vCard 一樣
+  function vcard(c) {
+    const e = s => String(s).replace(/\\/g, "\\\\").replace(/,/g, "\\,").replace(/;/g, "\;").replace(/\n/g, " ");
+    const name = c.n || "", parts = name.split(/[ \u3000]+/).filter(Boolean);
+    let fam = name, giv = "";
+    if (parts.length >= 2) {
+      const latin = /^[\u0000-\u024f]+$/.test(name);
+      fam = latin ? parts.slice(1).join(" ") : parts[0];
+      giv = latin ? parts[0] : parts.slice(1).join(" ");
+    }
+    const L = ["BEGIN:VCARD", "VERSION:3.0", `N:${e(fam)};${e(giv)};;;`, `FN:${e(name || c.c || "")}`];
+    if (c.r) L.push(`X-PHONETIC-LAST-NAME:${e(c.r)}`);
+    if (c.c) L.push(`ORG:${e(c.c)}${c.d ? ";" + e(c.d) : ""}`);
+    if (c.t) L.push(`TITLE:${e(c.t)}`);
+    for (const p of c.p || []) L.push(`TEL;TYPE=${p.label === "m" ? "CELL" : p.label === "f" ? "WORK,FAX" : "WORK,VOICE"}:${p.value}`);
+    for (const m of c.e || []) L.push(`EMAIL;TYPE=WORK:${m}`);
+    if (c.w) L.push(`URL:${c.w}`);
+    if (c.a) L.push(`ADR;TYPE=WORK:;;${e(c.a)};;;;`);
+    for (const s of c.s || []) L.push(`X-SOCIALPROFILE;TYPE=${e(s.label)}:${e(s.value)}`);
+    L.push("END:VCARD");
+    return L.join("\r\n");
+  }
+
+  function save(c) {
+    // iPhone 的 Safari 打開 vCard 會直接顯示「新增聯絡人」；其他瀏覽器下載 .vcf 檔
+    const blob = new Blob([vcard(c)], { type: "text/vcard;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const iOS = /iP(hone|ad|od)/.test(navigator.userAgent) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+    if (iOS) { location.href = url; return; }
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = ((c.n || c.c || "card").replace(/[\\/:*?"<>|]/g, "") || "card") + ".vcf";
+    document.body.appendChild(a); a.click(); a.remove();
+  }
+
+  const row = (icon, label, value, href) =>
+    `<${href ? `a href="${esc(href)}"` : "div"} class="row"><span class="icon">${icon}</span><span><small>${esc(label)}</small>${esc(value)}</span></${href ? "a" : "div"}>`;
+
+  function render(c) {
+    const name = c.n || c.c || "";
+    document.title = `${name} · ${lang === "en" ? "En Cards" : lang === "ja" ? "縁名刺" : lang === "zh-Hans" ? "缘名片" : "緣名片"}`;
+    const role = [c.t, c.d].filter(Boolean).join(" · ");
+    const rows = [];
+    for (const p of c.p || []) {
+      const label = p.label === "m" ? t.mobile : p.label === "w" ? t.work : p.label === "f" ? t.fax : p.label;
+      rows.push(row(p.label === "f" ? "📠" : "📞", label, p.value, p.label === "f" ? null : "tel:" + p.value.replace(/[^\d+]/g, "")));
+    }
+    for (const m of c.e || []) rows.push(row("✉️", "Email", m, "mailto:" + m));
+    if (c.w) rows.push(row("🌐", t.web, c.w, /^https?:/i.test(c.w) ? c.w : "https://" + c.w));
+    if (c.a) rows.push(row("📍", t.address, c.a, "https://maps.apple.com/?q=" + encodeURIComponent(c.a)));
+    for (const s of c.s || []) rows.push(row("💬", s.label, s.value, /^https?:/i.test(s.value) ? s.value : null));
+    app.innerHTML = `
+      <div class="head">
+        <div class="avatar">${esc((name[0] || "?").toUpperCase())}</div>
+        <h1>${esc(name)}</h1>
+        ${c.r ? `<p class="reading">${esc(c.r)}</p>` : ""}
+        ${role ? `<p class="role">${esc(role)}</p>` : ""}
+        ${c.n && c.c ? `<p class="company">${esc(c.c)}</p>` : ""}
+      </div>
+      <button class="save" id="save">${esc(t.save)}</button>
+      ${rows.length ? `<div class="list">${rows.join("")}</div>` : ""}
+      <div class="promo"><strong>${esc(t.promoTitle)}</strong><p>${esc(t.promo)}</p>
+        <a href="https://apps.apple.com/app/id6816372347">${esc(t.get)}</a></div>
+      <p class="note">${esc(t.note)}</p>`;
+    document.getElementById("save").onclick = () => save(c);
+    // App Clip 按「加入聯絡人」會開 /v/：一打開就存
+    if (location.pathname.includes("/v/")) save(c);
+  }
+
+  decode(location.hash).then(render).catch(() => { document.getElementById("empty").textContent = t.bad; });
+})();
+</script>
+</body>
+</html>
